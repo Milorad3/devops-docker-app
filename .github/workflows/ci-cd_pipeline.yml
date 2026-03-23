@@ -71,8 +71,13 @@ jobs:
                 key: ${{ secrets.DROPLET_SSH_KEY }}
                 port: 22
                 script: |
-                  cd ~
-                  docker-compose pull
-                  docker-compose up -d
+                  script: |
+                    whoami
+                    pwd
+                    docker compose version
+                    cd ~
+                    ls -la
+                    docker compose pull
+                    docker compose up -d
             
     
