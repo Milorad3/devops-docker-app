@@ -73,8 +73,8 @@ jobs:
                 username: ${{ secrets.DROPLET_USER }}
                 key: ${{ secrets.DROPLET_SSH_KEY }}
                 port: 22
-                source: "/Users/miloradmarkovic/devops-docker-app/docker-compose.yaml"
-                target: "~/docker-compose.yaml"
+                source: "docker-compose.yaml"
+                target: "home/devops/"
             - name: Execute deployment script on Droplet
               uses: appleboy/ssh-action@master
               with:
@@ -83,7 +83,7 @@ jobs:
                 key: ${{ secrets.DROPLET_SSH_KEY }}
                 port: 22
                 script: |
-                      cd ~
+                      cd /home/devops/
                       docker-compose pull
                       docker-compose down
                       docker-compose up -d
