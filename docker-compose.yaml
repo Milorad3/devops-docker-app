@@ -1,0 +1,19 @@
+services:
+  app:
+    image: milorad86/devops-docker-app:latest
+    ports:
+      - "3001:3000"
+    depends_on:
+      - db
+    env_file:
+      - .env
+    restart: unless-stopped
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
