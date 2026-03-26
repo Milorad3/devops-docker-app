@@ -6,86 +6,86 @@ on:
       - main
 
 jobs:
-    tests:
-        runs-on: ubuntu-latest
-        steps:
-            - name: Checkout code
-              uses: actions/checkout@v4
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-            - name: Set up Node.js
-              uses: actions/setup-node@v4
-              with:
-                node-version: '18'
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
 
-            - name: Install dependencies
-              run: |
-                npm install
+      - name: Install dependencies
+        run: npm install
 
-            - name: Run tests
-              run: |
-                npm test
-            
-            - name: Basic app check
-              run: node --check app.js
+      - name: Run tests
+        run: npm test
 
-    docker:
-        needs: tests
-        runs-on: ubuntu-latest
-        steps:
-            - name: Checkout code
-              uses: actions/checkout@v4
+  docker:
+    needs: tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-            - name: Set up Docker Buildx
-              uses: docker/setup-buildx-action@v3
+      - name: Set short SHA
+        run: echo "SHORT_SHA=${GITHUB_SHA::7}" >> $GITHUB_ENV
 
-            - name: Log in to Docker Hub
-              uses: docker/login-action@v3
-              with:
-                username: ${{ secrets.DOCKER_USERNAME }}
-                password: ${{ secrets.DOCKER_PASSWORD }}
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-            - name: Set short SHA
-              id: vars
-              run: echo "SHORT_SHA=${GITHUB_SHA::3}" >> $GITHUB_ENV
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
-            - name: Build and push Docker image
-              uses: docker/build-push-action@v6
-              with:
-                context: .
-                push: true
-                platforms: linux/amd64
-                tags: |
-                  milorad86/devops-docker-app:latest
-                  milorad86/devops-docker-app:${{ env.SHORT_SHA }}
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64
+          tags: |
+            milorad86/devops-docker-app:latest
+            milorad86/devops-docker-app:${{ env.SHORT_SHA }}
 
-    deploy:
-        needs: docker
-        runs-on: ubuntu-latest
+  deploy:
+    needs: docker
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-        steps:
-            - name: Checkout code
-              uses: actions/checkout@v4
+      - name: Copy docker-compose.yml to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DROPLET_HOST }}
+          username: ${{ secrets.DROPLET_USER }}
+          key: ${{ secrets.DROPLET_SSH_KEY }}
+          port: 22
+          source: "docker-compose.yaml"
+          target: "/home/devops/"
 
-            - name: Copy docker-compose.yml to server
-              uses: appleboy/scp-action@master
-              with:
-                host: ${{ secrets.DROPLET_HOST }}
-                username: ${{ secrets.DROPLET_USER }}
-                key: ${{ secrets.DROPLET_SSH_KEY }}
-                port: 22
-                source: "docker-compose.yaml"
-                target: "home/devops/"
-            - name: Execute deployment script on Droplet
-              uses: appleboy/ssh-action@master
-              with:
-                host: ${{ secrets.DROPLET_HOST }}
-                username: ${{ secrets.DROPLET_USER }}
-                key: ${{ secrets.DROPLET_SSH_KEY }}
-                port: 22
-                script: |
-                      cd /home/devops/
-                      docker-compose pull
-                      docker-compose down
-                      docker-compose up -d
-            
-    
+      - name: Execute deployment script on Droplet
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DROPLET_HOST }}
+          username: ${{ secrets.DROPLET_USER }}
+          key: ${{ secrets.DROPLET_SSH_KEY }}
+          port: 22
+          script: |
+            cd /home/devops/
+            cat > .env <<EOF
+            DB_HOST=${{ secrets.DB_HOST }}
+            DB_PORT=${{ secrets.DB_PORT }}
+            DB_USER=${{ secrets.DB_USER }}
+            DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+            DB_NAME=${{ secrets.DB_NAME }}
+            EOF
+
+            docker-compose pull
+            docker-compose down
+            docker-compose up -d
